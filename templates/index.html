@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TalentLens — Job Applicant Shortlisting System</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SIDEBAR NAV
+═══════════════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <span class="brand-icon"><i class="bi bi-crosshair2"></i></span>
+    <span class="brand-text">Talent<strong>Lens</strong></span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item active" data-view="dashboard" onclick="showView('dashboard',this)">
+      <i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span>
+    </a>
+    <a href="#" class="nav-item" data-view="candidates" onclick="showView('candidates',this)">
+      <i class="bi bi-people-fill"></i><span>Candidates</span>
+    </a>
+    <a href="#" class="nav-item" data-view="add" onclick="showView('add',this)">
+      <i class="bi bi-person-plus-fill"></i><span>Add Candidate</span>
+    </a>
+    <a href="#" class="nav-item" data-view="search" onclick="showView('search',this)">
+      <i class="bi bi-search-heart"></i><span>Search</span>
+    </a>
+    <a href="#" class="nav-item" data-view="shortlist" onclick="showView('shortlist',this)">
+      <i class="bi bi-trophy-fill"></i><span>Shortlist</span>
+    </a>
+    <a href="#" class="nav-item" data-view="algorithms" onclick="showView('algorithms',this)">
+      <i class="bi bi-cpu-fill"></i><span>Algorithms</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="btn-export" onclick="exportCSV()">
+      <i class="bi bi-download"></i> Export CSV
+    </button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════════════════════════ -->
+<main class="main-content" id="mainContent">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+    <div class="topbar-title" id="pageTitle">Dashboard</div>
+    <div class="topbar-right">
+      <div class="live-clock" id="liveClock"></div>
+      <div class="avatar">JS</div>
+    </div>
+  </header>
+
+  <!-- ── TOAST ── -->
+  <div class="toast-wrapper" id="toastWrapper"></div>
+
+  <!-- ───────────────────────────────────────────────────────────
+       VIEW: DASHBOARD
+  ─────────────────────────────────────────────────────────────── -->
+  <section class="view active" id="view-dashboard">
+    <div class="view-header">
+      <h1>Dashboard <span class="badge-live">LIVE</span></h1>
+      <p>Real-time overview of your talent pipeline</p>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card" style="--accent:#6ee7b7">
+        <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+        <div class="stat-body">
+          <div class="stat-value" id="statTotal">—</div>
+          <div class="stat-label">Total Candidates</div>
+        </div>
+      </div>
+      <div class="stat-card" style="--accent:#fcd34d">
+        <div class="stat-icon"><i class="bi bi-star-fill"></i></div>
+        <div class="stat-body">
+          <div class="stat-value" id="statAvgScore">—</div>
+          <div class="stat-label">Avg Score</div>
+        </div>
+      </div>
+      <div class="stat-card" style="--accent:#f9a8d4">
+        <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+        <div class="stat-body">
+          <div class="stat-value" id="statAvgExp">—</div>
+          <div class="stat-label">Avg Experience (yrs)</div>
+        </div>
+      </div>
+      <div class="stat-card" style="--accent:#93c5fd">
+        <div class="stat-icon"><i class="bi bi-trophy-fill"></i></div>
+        <div class="stat-body">
+          <div class="stat-value" id="statTopScore">—</div>
+          <div class="stat-label">Top Score</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <span><i class="bi bi-bar-chart-fill"></i> Top 8 Candidates by Score</span>
+        </div>
+        <canvas id="chartTopCandidates" height="260"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <span><i class="bi bi-pie-chart-fill"></i> Experience Distribution</span>
+        </div>
+        <canvas id="chartExpDist" height="260"></canvas>
+      </div>
+    </div>
+
+    <!-- RECENT CANDIDATES -->
+    <div class="section-card">
+      <div class="section-card-header">
+        <span><i class="bi bi-clock"></i> Recently Added</span>
+        <button class="btn-sm-outline" onclick="showView('candidates', document.querySelector('[data-view=candidates]'))">View All</button>
+      </div>
+      <div id="recentTable"></div>
+    </div>
+  </section>
+
+
+  <!-- ───────────────────────────────────────────────────────────
+       VIEW: ALL CANDIDATES
+  ─────────────────────────────────────────────────────────────── -->
+  <section class="view" id="view-candidates">
+    <div class="view-header">
+      <h1>All Candidates</h1>
+      <p>Manage, sort, and analyse every applicant</p>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="sort-controls">
+          <label>Sort by</label>
+          <select id="sortKey" class="form-select form-select-sm">
+            <option value="score">Score</option>
+            <option value="experience">Experience</option>
+            <option value="expected_salary">Salary</option>
+          </select>
+          <select id="sortOrder" class="form-select form-select-sm">
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+          <button class="btn-action" onclick="sortCandidates()">
+            <i class="bi bi-sort-down"></i> Quick Sort
+          </button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <input type="text" id="quickFilter" class="form-control form-control-sm" placeholder="Filter by name…" oninput="quickFilterTable()" />
+      </div>
+    </div>
+
+    <div class="algo-badge" id="sortAlgoBadge" style="display:none">
+      <i class="bi bi-lightning-charge-fill"></i> Quick Sort applied — O(n log n) average complexity
+    </div>
+
+    <div id="candidatesTable"></div>
+  </section>
+
+
+  <!-- ───────────────────────────────────────────────────────────
+       VIEW: ADD CANDIDATE
+  ─────────────────────────────────────────────────────────────── -->
+  <section class="view" id="view-add">
+    <div class="view-header">
+      <h1>Add Candidate</h1>
+      <p>Register a new applicant to the pipeline</p>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="field-group">
+              <label>Full Name <span class="req">*</span></label>
+              <input type="text" id="addName" class="form-control" placeholder="e.g. Jane Smith" />
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="field-group">
+              <label>Skills <span class="req">*</span> <small>(comma-separated)</small></label>
+              <input type="text" id="addSkills" class="form-control" placeholder="e.g. Python, Django, SQL" />
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="field-group">
+              <label>Experience (years) <span class="req">*</span></label>
+              <input type="number" id="addExperience" class="form-control" placeholder="e.g. 5" min="0" max="50" step="0.5" oninput="previewScore()" />
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="field-group">
+              <label>Expected Salary ($)</label>
+              <input type="number" id="addSalary" class="form-control" placeholder="e.g. 80000" oninput="previewScore()" />
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="field-group">
+              <label>Manual Score <small>(leave blank = auto)</small></label>
+              <input type="number" id="addScore" class="form-control" placeholder="0 – 100" min="0" max="100" step="0.1" />
+            </div>
+          </div>
+        </div>
+
+        <!-- SCORE PREVIEW -->
+        <div class="score-preview" id="scorePreview" style="display:none">
+          <div class="score-preview-label">Auto-Calculated Score Preview</div>
+          <div class="score-preview-value" id="scorePreviewVal">—</div>
+          <div class="score-formula">score = (exp × 2) + (skills × 3) − (salary / 10000)</div>
+        </div>
+
+        <!-- SKILL TAGS -->
+        <div class="skill-tags-row" id="skillTagsRow"></div>
+
+        <div class="form-actions">
+          <button class="btn-primary-action" onclick="addCandidate()">
+            <i class="bi bi-person-check-fill"></i> Add Candidate
+          </button>
+          <button class="btn-secondary-action" onclick="clearForm()">
+            <i class="bi bi-x-circle"></i> Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ───────────────────────────────────────────────────────────
+       VIEW: SEARCH
+  ─────────────────────────────────────────────────────────────── -->
+  <section class="view" id="view-search">
+    <div class="view-header">
+      <h1>Search Candidates</h1>
+      <p>Binary Search on numeric fields · Recursive Skill Filter</p>
+    </div>
+
+    <div class="search-tabs">
+      <button class="search-tab active" onclick="switchSearchTab('numeric', this)">
+        <i class="bi bi-hash"></i> Numeric Search
+      </button>
+      <button class="search-tab" onclick="switchSearchTab('skill', this)">
+        <i class="bi bi-tags-fill"></i> Skill Filter
+      </button>
+      <button class="search-tab" onclick="switchSearchTab('name', this)">
+        <i class="bi bi-person-badge-fill"></i> Name Search
+      </button>
+    </div>
+
+    <!-- NUMERIC SEARCH -->
+    <div class="search-panel active" id="searchPanel-numeric">
+      <div class="algo-badge"><i class="bi bi-binary"></i> Algorithm: Binary Search — O(log n)</div>
+      <div class="row g-3 mt-2">
+        <div class="col-md-3">
+          <label class="form-label">Search Field</label>
+          <select id="searchField" class="form-select">
+            <option value="score">Score</option>
+            <option value="experience">Experience</option>
+            <option value="expected_salary">Salary</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Search Type</label>
+          <select id="searchType" class="form-select" onchange="toggleSearchType()">
+            <option value="exact">Exact Value</option>
+            <option value="range">Range</option>
+          </select>
+        </div>
+        <div class="col-md-3" id="exactValCol">
+          <label class="form-label">Value</label>
+          <input type="number" id="searchValue" class="form-control" placeholder="e.g. 85" />
+        </div>
+        <div class="col-md-3" id="rangeValCol" style="display:none">
+          <label class="form-label">Min – Max</label>
+          <div class="d-flex gap-2">
+            <input type="number" id="searchMin" class="form-control" placeholder="Min" />
+            <input type="number" id="searchMax" class="form-control" placeholder="Max" />
+          </div>
+        </div>
+      </div>
+      <button class="btn-action mt-3" onclick="searchNumeric()">
+        <i class="bi bi-search"></i> Binary Search
+      </button>
+    </div>
+
+    <!-- SKILL FILTER -->
+    <div class="search-panel" id="searchPanel-skill">
+      <div class="algo-badge"><i class="bi bi-diagram-3-fill"></i> Algorithm: Recursive Skill Filter — Tail Recursion</div>
+      <div class="row g-3 mt-2">
+        <div class="col-md-8">
+          <label class="form-label">Required Skills <small>(comma-separated)</small></label>
+          <input type="text" id="searchSkills" class="form-control" placeholder="e.g. Python, Docker, REST API" />
+        </div>
+      </div>
+      <button class="btn-action mt-3" onclick="searchBySkill()">
+        <i class="bi bi-funnel-fill"></i> Recursive Filter
+      </button>
+    </div>
+
+    <!-- NAME SEARCH -->
+    <div class="search-panel" id="searchPanel-name">
+      <div class="algo-badge"><i class="bi bi-person-lines-fill"></i> Algorithm: Linear Name Search</div>
+      <div class="row g-3 mt-2">
+        <div class="col-md-6">
+          <label class="form-label">Candidate Name</label>
+          <input type="text" id="searchName" class="form-control" placeholder="e.g. Alice" />
+        </div>
+      </div>
+      <button class="btn-action mt-3" onclick="searchByName()">
+        <i class="bi bi-search"></i> Search Name
+      </button>
+    </div>
+
+    <div class="algo-badge" id="searchResultBadge" style="display:none"></div>
+    <div id="searchResults"></div>
+  </section>
+
+
+  <!-- ───────────────────────────────────────────────────────────
+       VIEW: SHORTLIST
+  ─────────────────────────────────────────────────────────────── -->
+  <section class="view" id="view-shortlist">
+    <div class="view-header">
+      <h1>Shortlist Top Candidates</h1>
+      <p>Quick Sort + Recursive Rank to surface your best applicants</p>
+    </div>
+
+    <div class="shortlist-controls">
+      <div class="field-group" style="width:140px">
+        <label>Top N Candidates</label>
+        <input type="number" id="shortlistN" class="form-control" value="5" min="1" max="50" />
+      </div>
+      <div class="field-group" style="flex:1">
+        <label>Required Skills <small>(optional filter)</small></label>
+        <input type="text" id="shortlistSkills" class="form-control" placeholder="e.g. Python, React" />
+      </div>
+      <button class="btn-primary-action" style="align-self:flex-end" onclick="getShortlist()">
+        <i class="bi bi-trophy-fill"></i> Generate Shortlist
+      </button>
+    </div>
+
+    <div id="shortlistResults"></div>
+  </section>
+
+
+  <!-- ───────────────────────────────────────────────────────────
+       VIEW: ALGORITHMS INFO
+  ─────────────────────────────────────────────────────────────── -->
+  <section class="view" id="view-algorithms">
+    <div class="view-header">
+      <h1>Algorithm Reference</h1>
+      <p>How TalentLens processes your data under the hood</p>
+    </div>
+
+    <div class="algo-cards">
+
+      <div class="algo-info-card">
+        <div class="algo-info-icon" style="background:#6ee7b7;color:#064e3b"><i class="bi bi-sort-down-alt"></i></div>
+        <div class="algo-info-body">
+          <h3>Quick Sort</h3>
+          <p class="algo-complexity">O(n log n) average · O(n²) worst</p>
+          <p>Used to sort all candidates by score, experience, or salary. Pivot is chosen from the middle to reduce worst-case on already-sorted data. Each call partitions the list into left ≥ pivot and right &lt; pivot, then recursively sorts each partition.</p>
+          <div class="algo-code">
+            <pre>quickSort(arr, key):
+  if len(arr) &lt;= 1: return arr
+  pivot = arr[len//2]
+  left  = [x for x in arr if x[key] &gt;= pivot[key]]
+  right = [x for x in arr if x[key] &lt;  pivot[key]]
+  return quickSort(left) + [pivot] + quickSort(right)</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="algo-info-card">
+        <div class="algo-info-icon" style="background:#fcd34d;color:#78350f"><i class="bi bi-binary"></i></div>
+        <div class="algo-info-body">
+          <h3>Binary Search</h3>
+          <p class="algo-complexity">O(log n) to find · O(k) for duplicates</p>
+          <p>Requires pre-sorted input. Narrows the search space by half each iteration. Once a match is found, expands left/right to collect all candidates sharing the same value (handles ties elegantly).</p>
+          <div class="algo-code">
+            <pre>binarySearch(arr, target, key):
+  lo, hi = 0, len(arr)-1
+  while lo &lt;= hi:
+    mid = (lo+hi) // 2
+    if arr[mid][key] == target: return mid
+    elif arr[mid][key] &gt; target: lo = mid+1
+    else: hi = mid-1</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="algo-info-card">
+        <div class="algo-info-icon" style="background:#f9a8d4;color:#831843"><i class="bi bi-diagram-3-fill"></i></div>
+        <div class="algo-info-body">
+          <h3>Recursive Algorithms</h3>
+          <p class="algo-complexity">Three recursive functions in use</p>
+          <ul>
+            <li><strong>recursive_skill_filter</strong> — tail-recursively walks the candidate list, checking each one for all required skills via a nested recursion (_all_skills_present).</li>
+            <li><strong>recursive_rank_build</strong> — assigns rank numbers while handling ties (equal score → same rank).</li>
+            <li><strong>_all_skills_present</strong> — inner helper: checks required skills one by one recursively.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="algo-info-card">
+        <div class="algo-info-icon" style="background:#93c5fd;color:#1e3a8a"><i class="bi bi-calculator-fill"></i></div>
+        <div class="algo-info-body">
+          <h3>Auto-Score Formula</h3>
+          <p class="algo-complexity">Weighted multi-factor scoring</p>
+          <p>Automatically computes a 0–100 score for every candidate:</p>
+          <div class="algo-code">
+            <pre>score = (experience × 2)
+      + (skills_count × 3)
+      − (salary / 10000)
+      clamped to [0, 100]</pre>
+          </div>
+          <p>Higher experience and more skills push the score up; higher salary expectation has a mild negative weight.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     EDIT MODAL
+═══════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content tl-modal">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Edit Candidate</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editId" />
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="editName" class="form-control" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Skills</label>
+            <input type="text" id="editSkills" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Experience (yrs)</label>
+            <input type="number" id="editExperience" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Expected Salary</label>
+            <input type="number" id="editSalary" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Score (blank = auto)</label>
+            <input type="number" id="editScore" class="form-control" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary-action" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary-action" onclick="saveEdit()"><i class="bi bi-check2-circle"></i> Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
